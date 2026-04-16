@@ -1,0 +1,57 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# Post-install script for claude-voice package
+# Runs automatically after `apt install` or `dpkg -i`
+
+set -e
+
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+CONF="$PREFIX/etc/claude-voice.conf"
+TASKER_DIR="$HOME/.termux/tasker"
+TASKER_LINK="$TASKER_DIR/claude_relay.sh"
+TERMUX_PROPS="$HOME/.termux/termux.properties"
+
+echo "[claude-voice] Running post-install setup..."
+
+# 1. Create ~/.termux/tasker/ directory
+mkdir -p "$TASKER_DIR"
+
+# 2. Create/update the claude_relay.sh symlink that the Android app expects
+if [ -L "$TASKER_LINK" ] || [ -f "$TASKER_LINK" ]; then
+    echo "[claude-voice] Updating existing $TASKER_LINK"
+    rm -f "$TASKER_LINK"
+fi
+ln -sf "$PREFIX/bin/claude-voice" "$TASKER_LINK"
+echo "[claude-voice] Symlink created: $TASKER_LINK -> $PREFIX/bin/claude-voice"
+
+# 3. Ensure allow-external-apps is set in termux.properties
+#    (required for com.termux.RUN_COMMAND to work from external apps)
+mkdir -p "$HOME/.termux"
+if [ -f "$TERMUX_PROPS" ]; then
+    if grep -q "allow-external-apps" "$TERMUX_PROPS"; then
+        # Update existing line (handles both = true and = false)
+        sed -i 's/^.*allow-external-apps.*$/allow-external-apps = true/' "$TERMUX_PROPS"
+        echo "[claude-voice] Updated allow-external-apps = true in termux.properties"
+    else
+        echo "allow-external-apps = true" >> "$TERMUX_PROPS"
+        echo "[claude-voice] Added allow-external-apps = true to termux.properties"
+    fi
+else
+    echo "allow-external-apps = true" > "$TERMUX_PROPS"
+    echo "[claude-voice] Created termux.properties with allow-external-apps = true"
+fi
+
+# 4. Print next-steps if config PC IP is not yet set
+if grep -q "^CLAUDE_VOICE_PC_IP=$" "$CONF" 2>/dev/null; then
+    echo ""
+    echo "┌─────────────────────────────────────────────────────┐"
+    echo "│  claude-voice installed — one step remaining:       │"
+    echo "│                                                     │"
+    echo "│  Edit $PREFIX/etc/claude-voice.conf    │"
+    echo "│  and set CLAUDE_VOICE_PC_IP to your PC's LAN IP.   │"
+    echo "│                                                     │"
+    echo "│  Then test with:  claude-voice --status             │"
+    echo "└─────────────────────────────────────────────────────┘"
+fi
+
+echo "[claude-voice] Post-install complete."
+echo "[claude-voice] Restart Termux for termux.properties changes to take effect."

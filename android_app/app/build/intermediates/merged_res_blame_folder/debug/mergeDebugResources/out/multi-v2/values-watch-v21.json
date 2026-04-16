@@ -1,0 +1,20 @@
+{
+    "logs": [
+        {
+            "outputFile": "com.redrum.claudevoice.app-mergeDebugResources-2:/values-watch-v21/values-watch-v21.xml",
+            "map": [
+                {
+                    "source": "/home/redrum/.gradle/caches/transforms-4/660e7c4dba6e229606079e0fab5ffe48/transformed/appcompat-1.7.0/res/values-watch-v21/values-watch-v21.xml",
+                    "from": {
+                        "startLines": "2,6,10",
+                        "startColumns": "4,4,4",
+                        "startOffsets": "55,271,499",
+                        "endLines": "5,9,13",
+                        "endColumns": "12,12,12",
+                        "endOffsets": "266,494,724"
+                    }
+                }
+            ]
+        }
+    ]
+}

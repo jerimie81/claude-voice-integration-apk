@@ -1,0 +1,14 @@
+[
+    {
+        "merged": "com.redrum.claudevoice.app-mergeDebugResources-3:/layout/overlay_bubble.xml",
+        "source": "com.redrum.claudevoice.app-main-6:/layout/overlay_bubble.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-mergeDebugResources-3:/layout/activity_main.xml",
+        "source": "com.redrum.claudevoice.app-main-6:/layout/activity_main.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-mergeDebugResources-3:/layout/activity_settings.xml",
+        "source": "com.redrum.claudevoice.app-main-6:/layout/activity_settings.xml"
+    }
+]

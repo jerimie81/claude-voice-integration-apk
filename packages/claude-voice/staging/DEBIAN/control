@@ -1,0 +1,17 @@
+Package: claude-voice
+Version: 1.0.0
+Architecture: all
+Maintainer: redrum
+Installed-Size: 12
+Depends: curl
+Section: utils
+Priority: optional
+Homepage: https://github.com/redrum/claude-voice-integration
+Description: Voice-triggered Claude CLI relay for Termux
+ Enables Google Assistant (via Android App Actions) to relay voice queries
+ to Claude CLI — either forwarded over HTTP to a PC running the companion
+ Flask server, or executed locally inside Termux when claude CLI is installed.
+ .
+ Components:
+  - /usr/bin/claude-voice  : main relay script (relay or local mode)
+  - /usr/etc/claude-voice.conf : configuration file

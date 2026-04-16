@@ -1,0 +1,82 @@
+[
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_ic_launcher_background.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/ic_launcher_background.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_bg_settings_input.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/bg_settings_input.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/xml_shortcuts.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/xml/shortcuts.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/layout_overlay_bubble.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/layout/overlay_bubble.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_ic_mic_off.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/ic_mic_off.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_bg_mic_button_active.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/bg_mic_button_active.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_bg_overlay_toggle.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/bg_overlay_toggle.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_bg_mic_button.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/bg_mic_button.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_bg_status_chip.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/bg_status_chip.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_ic_layers.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/ic_layers.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_bg_overlay_bubble.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/bg_overlay_bubble.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_bg_save_button.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/bg_save_button.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_ic_settings.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/ic_settings.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_ic_mic.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/ic_mic.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/drawable_bg_response_card.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/drawable/bg_response_card.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/layout_activity_settings.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/layout/activity_settings.xml"
+    },
+    {
+        "merged": "com.redrum.claudevoice.app-debug-4:/layout_activity_main.xml.flat",
+        "source": "com.redrum.claudevoice.app-main-6:/layout/activity_main.xml"
+    }
+]

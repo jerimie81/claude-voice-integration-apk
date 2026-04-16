@@ -1,0 +1,165 @@
+#!/data/data/com.termux/files/usr/bin/bash
+# claude-voice — relay a voice query to Claude CLI
+#
+# Modes:
+#   relay  — HTTP POST to a PC Flask server running claude_webhook_server.py
+#   local  — call `claude -p` directly inside Termux (requires claude CLI installed)
+#
+# Config: $PREFIX/etc/claude-voice.conf
+# Usage:  claude-voice <query text>
+#         claude-voice --status         (check connectivity / mode)
+#         claude-voice --config         (print active config)
+
+set -uo pipefail
+
+# ── Resolve PREFIX ────────────────────────────────────────────────────────────
+PREFIX="${PREFIX:-/data/data/com.termux/files/usr}"
+CONF="${CLAUDE_VOICE_CONF:-$PREFIX/etc/claude-voice.conf}"
+TASKER_DIR="$HOME/.termux/tasker"
+TASKER_LINK="$TASKER_DIR/claude_relay.sh"
+
+# ── Load config ───────────────────────────────────────────────────────────────
+if [ -f "$CONF" ]; then
+    # shellcheck source=/dev/null
+    source "$CONF"
+fi
+
+# Apply defaults for any unset vars
+MODE="${CLAUDE_VOICE_MODE:-relay}"
+PC_IP="${CLAUDE_VOICE_PC_IP:-}"
+PC_PORT="${CLAUDE_VOICE_PC_PORT:-5000}"
+TIMEOUT="${CLAUDE_VOICE_TIMEOUT:-30}"
+LOG_FILE="${CLAUDE_VOICE_LOG:-$HOME/.claude-voice.log}"
+VERBOSE="${CLAUDE_VOICE_VERBOSE:-0}"
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+log() {
+    local ts
+    ts=$(date '+%Y-%m-%d %H:%M:%S')
+    printf '[%s] %s\n' "$ts" "$*" >> "$LOG_FILE"
+    if [ "$VERBOSE" = "1" ]; then
+        printf '[%s] %s\n' "$ts" "$*" >&2
+    fi
+}
+
+die() {
+    printf 'claude-voice: %s\n' "$*" >&2
+    log "ERROR: $*"
+    exit 1
+}
+
+ensure_tasker_link() {
+    # Create ~/.termux/tasker/claude_relay.sh as a wrapper so the Android app
+    # (which calls that hardcoded path via com.termux.RUN_COMMAND) keeps working.
+    if [ ! -L "$TASKER_LINK" ] && [ ! -f "$TASKER_LINK" ]; then
+        mkdir -p "$TASKER_DIR"
+        ln -sf "$PREFIX/bin/claude-voice" "$TASKER_LINK"
+        log "Created tasker symlink: $TASKER_LINK -> $PREFIX/bin/claude-voice"
+    fi
+}
+
+# ── Subcommands ───────────────────────────────────────────────────────────────
+cmd_config() {
+    printf 'Config file : %s\n' "$CONF"
+    printf 'Mode        : %s\n' "$MODE"
+    printf 'PC IP       : %s\n' "${PC_IP:-(not set)}"
+    printf 'PC Port     : %s\n' "$PC_PORT"
+    printf 'Timeout     : %ss\n' "$TIMEOUT"
+    printf 'Log file    : %s\n' "$LOG_FILE"
+    printf 'Tasker link : %s\n' "$TASKER_LINK"
+}
+
+cmd_status() {
+    printf 'Mode: %s\n' "$MODE"
+    if [ "$MODE" = "relay" ]; then
+        if [ -z "$PC_IP" ]; then
+            die "CLAUDE_VOICE_PC_IP is not set in $CONF"
+        fi
+        printf 'Checking PC server at http://%s:%s/health ... ' "$PC_IP" "$PC_PORT"
+        local http_code
+        http_code=$(curl -s -o /dev/null -w "%{http_code}" \
+            --max-time 5 "http://${PC_IP}:${PC_PORT}/health" 2>/dev/null) || http_code="000"
+        if [ "$http_code" = "200" ]; then
+            printf 'OK\n'
+        else
+            printf 'UNREACHABLE (HTTP %s)\n' "$http_code"
+            exit 1
+        fi
+    else
+        printf 'Checking claude CLI ... '
+        if command -v claude &>/dev/null; then
+            printf 'OK (%s)\n' "$(command -v claude)"
+        else
+            printf 'NOT FOUND\n'
+            exit 1
+        fi
+    fi
+}
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+main() {
+    ensure_tasker_link
+
+    local subcmd="${1:-}"
+
+    case "$subcmd" in
+        --config)
+            cmd_config
+            exit 0
+            ;;
+        --status)
+            cmd_status
+            exit 0
+            ;;
+        --help|-h|"")
+            printf 'Usage: claude-voice <query>\n'
+            printf '       claude-voice --status\n'
+            printf '       claude-voice --config\n'
+            if [ -z "$subcmd" ]; then
+                exit 1
+            fi
+            exit 0
+            ;;
+    esac
+
+    QUERY="$*"
+    log "QUERY: $QUERY"
+
+    if [ "$MODE" = "local" ]; then
+        # ── Local mode: run claude -p directly ─────────────────────────────
+        if ! command -v claude &>/dev/null; then
+            die "claude CLI not found. Install it or set CLAUDE_VOICE_MODE=relay in $CONF"
+        fi
+        RESPONSE=$(claude -p "$QUERY" 2>&1)
+        RC=$?
+        log "RESPONSE (local): ${RESPONSE:0:200}"
+        printf '%s\n' "$RESPONSE"
+        exit $RC
+
+    else
+        # ── Relay mode: HTTP POST to PC server ─────────────────────────────
+        if [ -z "$PC_IP" ]; then
+            die "CLAUDE_VOICE_PC_IP is not set in $CONF"
+        fi
+
+        RESPONSE=$(curl -sf \
+            --max-time "$TIMEOUT" \
+            -X POST \
+            --data-urlencode "query=$QUERY" \
+            "http://${PC_IP}:${PC_PORT}/claude" 2>&1)
+        RC=$?
+
+        if [ "$RC" -ne 0 ]; then
+            log "RELAY FAILED (curl exit $RC)"
+            printf 'claude-voice: relay failed — is the PC server running at %s:%s?\n' \
+                "$PC_IP" "$PC_PORT" >&2
+            exit $RC
+        fi
+
+        log "RESPONSE (relay): ${RESPONSE:0:200}"
+        printf '%s\n' "$RESPONSE"
+        exit 0
+    fi
+}
+
+main "$@"
