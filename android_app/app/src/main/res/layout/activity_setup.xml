@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/background_dark"
+    android:fitsSystemWindows="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="6dp"
+            android:text="@string/setup_title"
+            android:textColor="@color/text_primary"
+            android:textSize="24sp"
+            android:fontFamily="sans-serif-medium" />
+
+        <!-- Subtitle -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:text="@string/setup_subtitle"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:fontFamily="sans-serif" />
+
+        <!-- QR code -->
+        <ImageView
+            android:id="@+id/ivQr"
+            android:layout_width="256dp"
+            android:layout_height="256dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginBottom="24dp"
+            android:background="@android:color/white"
+            android:padding="8dp"
+            android:contentDescription="QR code for PC install command" />
+
+        <!-- Code snippet card -->
+        <HorizontalScrollView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp"
+            android:background="@color/surface_elevated"
+            android:scrollbars="horizontal">
+
+            <TextView
+                android:id="@+id/tvCmd"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="14dp"
+                android:text="@string/setup_install_cmd"
+                android:textColor="@color/accent_amber_light"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:singleLine="true" />
+
+        </HorizontalScrollView>
+
+        <!-- Copy / Skip row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="16dp">
+
+            <Button
+                android:id="@+id/btnCopy"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_settings_input"
+                android:text="@string/setup_copy"
+                android:textColor="@color/text_primary"
+                android:textAllCaps="false"
+                android:fontFamily="sans-serif-medium" />
+
+            <Button
+                android:id="@+id/btnSkip"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:background="@drawable/bg_settings_input"
+                android:text="@string/setup_skip"
+                android:textColor="@color/text_secondary"
+                android:textAllCaps="false"
+                android:fontFamily="sans-serif" />
+
+        </LinearLayout>
+
+        <!-- Done CTA -->
+        <Button
+            android:id="@+id/btnDone"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginBottom="16dp"
+            android:background="@drawable/bg_save_button"
+            android:text="@string/setup_done"
+            android:textColor="@color/text_primary"
+            android:textSize="15sp"
+            android:textAllCaps="false"
+            android:fontFamily="sans-serif-medium" />
+
+    </LinearLayout>
+
+</ScrollView>

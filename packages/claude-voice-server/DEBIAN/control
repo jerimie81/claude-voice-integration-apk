@@ -1,0 +1,17 @@
+Package: claude-voice-server
+Version: 1.0.0
+Architecture: all
+Maintainer: redrum
+Installed-Size: 48
+Depends: python3, python3-flask
+Section: utils
+Priority: optional
+Homepage: https://github.com/redrum/claude-voice-integration
+Description: PC-side relay server for Claude Voice Android app
+ Flask HTTP server that receives voice queries from the Claude Voice Android
+ app, forwards them to the Claude CLI, and streams responses back via SSE.
+ .
+ Components:
+  - /opt/claude-voice-server/claude_webhook_server.py : Flask relay server
+  - /opt/claude-voice-server/run-server.sh            : startup wrapper
+  - /usr/lib/systemd/user/claude-voice-server.service : user systemd unit

@@ -1,0 +1,23 @@
+[Unit]
+Description=Claude Voice Integration Server
+Documentation=https://github.com/redrum/claude-voice-integration
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=python3 /opt/claude-voice-server/claude_webhook_server.py
+Restart=on-failure
+RestartSec=5
+
+Environment=CLAUDE_VOICE_PORT=5000
+Environment=CLAUDE_VOICE_HOST=0.0.0.0
+Environment=CLAUDE_VOICE_TIMEOUT=300
+EnvironmentFile=%h/.config/claude-voice/server.env
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=claude-voice-server
+
+[Install]
+WantedBy=default.target

@@ -34,6 +34,8 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
     private var speechRecognizer: SpeechRecognizer? = null
     private var tts: TextToSpeech? = null
     private var isListening = false
+    private var turnCount = 0
+
     private val httpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
         .readTimeout(130, TimeUnit.SECONDS)
@@ -45,6 +47,11 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         setContentView(binding.root)
 
         tts = TextToSpeech(this, this)
+
+        val prefs = getSharedPreferences("claude_prefs", Context.MODE_PRIVATE)
+        if (!prefs.contains("pc_ip")) {
+            startActivity(Intent(this, SetupActivity::class.java))
+        }
 
         checkPermissions()
 
@@ -98,11 +105,12 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
     private fun setupMicButton() {
         binding.btnMic.setOnClickListener {
-            if (isListening) {
-                stopListening()
-            } else {
-                startListening()
-            }
+            if (isListening) stopListening() else startListening()
+        }
+        // Long-press resets the conversation history on the server.
+        binding.btnMic.setOnLongClickListener {
+            resetConversation()
+            true
         }
     }
 
@@ -190,7 +198,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
 
         binding.tvStatus.text = "Waiting for Claude..."
 
-        val url = "http://$ip:$port/claude"
+        val timeoutSec = prefs.getString("pc_timeout", "300")?.toLongOrNull() ?: 300L
+        val client = OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(timeoutSec + 30, TimeUnit.SECONDS)
+            .build()
+
+        val url = "http://$ip:$port/claude/stream"
         val body = query.toRequestBody("text/plain".toMediaType())
         val requestBuilder = Request.Builder().url(url).post(body)
         if (token.isNotEmpty()) {
@@ -199,8 +213,6 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         val request = requestBuilder.build()
 
         lifecycleScope.launch(Dispatchers.IO) {
-            // Cheap reachability probe so we surface "tunnel down" in 1s
-            // instead of waiting 15s for the OkHttp connect timeout.
             if (!isReachable(ip, port.toIntOrNull() ?: 5000, 1000)) {
                 withContext(Dispatchers.Main) {
                     binding.tvResponse.text = "WireGuard tunnel not active — open the WireGuard app and toggle the tunnel on."
@@ -210,20 +222,65 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                 return@launch
             }
             try {
-                val response = httpClient.newCall(request).execute()
-                val responseBody = response.body?.string() ?: "No response from server"
+                val response = client.newCall(request).execute()
 
-                withContext(Dispatchers.Main) {
-                    if (response.code == 401) {
+                if (response.code == 401) {
+                    withContext(Dispatchers.Main) {
                         binding.tvResponse.text = "Auth failed — set the bearer token in Settings."
                         binding.tvResponse.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.accent_red))
                         binding.tvStatus.text = "Unauthorized"
-                    } else {
-                        binding.tvResponse.text = "You: $query\n\nClaude: $responseBody"
-                        binding.tvResponse.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
-                        binding.tvStatus.text = "Ready"
-                        speak(responseBody)
                     }
+                    return@launch
+                }
+
+                val reader = response.body?.byteStream()?.bufferedReader()
+                    ?: throw Exception("Empty response body")
+
+                val fullResponse = StringBuilder()
+                val sentenceBuffer = StringBuilder()
+
+                for (line in reader.lineSequence()) {
+                    if (!line.startsWith("data: ")) continue
+                    val chunk = line.removePrefix("data: ")
+                    if (chunk == "[DONE]") break
+                    if (chunk.isEmpty()) continue
+
+                    fullResponse.append(chunk).append(" ")
+                    sentenceBuffer.append(chunk).append(" ")
+
+                    // Speak each complete sentence as it arrives rather than waiting for the full response.
+                    val text = sentenceBuffer.toString()
+                    var lastBoundary = -1
+                    for (sep in listOf(". ", "? ", "! ")) {
+                        val idx = text.lastIndexOf(sep)
+                        if (idx >= 0) {
+                            val end = idx + sep.length
+                            if (end > lastBoundary) lastBoundary = end
+                        }
+                    }
+                    if (lastBoundary > 0) {
+                        val sentence = text.substring(0, lastBoundary)
+                        sentenceBuffer.delete(0, lastBoundary)
+                        val display = fullResponse.toString().trim()
+                        withContext(Dispatchers.Main) {
+                            speak(sentence)
+                            binding.tvResponse.text = "You: $query\n\nClaude: $display"
+                        }
+                    }
+                }
+
+                // Speak any sentence fragment that didn't end with a boundary marker.
+                val remaining = sentenceBuffer.toString().trim()
+                if (remaining.isNotEmpty()) {
+                    withContext(Dispatchers.Main) { speak(remaining) }
+                }
+
+                turnCount++
+                val finalDisplay = fullResponse.toString().trim()
+                withContext(Dispatchers.Main) {
+                    binding.tvResponse.text = "You: $query\n\nClaude: $finalDisplay"
+                    binding.tvResponse.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.text_primary))
+                    binding.tvStatus.text = "Turn $turnCount | Ready"
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -231,6 +288,32 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
                     binding.tvResponse.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.accent_red))
                     binding.tvStatus.text = "Connection failed"
                 }
+            }
+        }
+    }
+
+    private fun resetConversation() {
+        val prefs = getSharedPreferences("claude_prefs", Context.MODE_PRIVATE)
+        val ip = prefs.getString("pc_ip", "10.7.0.1") ?: "10.7.0.1"
+        val port = prefs.getString("pc_port", "5000") ?: "5000"
+        val token = prefs.getString("pc_token", "") ?: ""
+
+        val url = "http://$ip:$port/reset"
+        val requestBuilder = Request.Builder().url(url).post("".toRequestBody())
+        if (token.isNotEmpty()) {
+            requestBuilder.header("Authorization", "Bearer $token")
+        }
+        val request = requestBuilder.build()
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                httpClient.newCall(request).execute()
+            } catch (_: Exception) { }
+            withContext(Dispatchers.Main) {
+                turnCount = 0
+                binding.tvResponse.text = ""
+                binding.tvStatus.text = "Ready"
+                Toast.makeText(this@MainActivity, "Conversation reset", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -246,8 +329,13 @@ class MainActivity : AppCompatActivity(), TextToSpeech.OnInitListener {
         }
     }
 
+    private fun sanitizeForTts(text: String): String =
+        text.replace(Regex("[`*#_\\[\\]()]"), "")
+            .replace(Regex("\\s{2,}"), " ")
+            .trim()
+
     private fun speak(text: String) {
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "claude_response")
+        tts?.speak(sanitizeForTts(text), TextToSpeech.QUEUE_ADD, null, "claude_response")
     }
 
     override fun onInit(status: Int) {

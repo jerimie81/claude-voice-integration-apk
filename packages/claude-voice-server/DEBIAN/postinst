@@ -1,0 +1,104 @@
+#!/bin/bash
+set -e
+
+# Detect the real user (script runs as root via dpkg/sudo)
+REAL_USER="${SUDO_USER:-}"
+if [ -z "$REAL_USER" ]; then
+    REAL_USER=$(logname 2>/dev/null || id -un)
+fi
+REAL_HOME=$(getent passwd "$REAL_USER" | cut -d: -f6)
+REAL_UID=$(id -u "$REAL_USER" 2>/dev/null || id -u)
+
+echo "[claude-voice-server] Setting up for user: $REAL_USER ($REAL_HOME)"
+
+# ── Bearer token ───────────────────────────────────────────────────────────────
+ENV_FILE="$REAL_HOME/.config/claude-voice/server.env"
+mkdir -p "$REAL_HOME/.config/claude-voice"
+chown "$REAL_USER:" "$REAL_HOME/.config/claude-voice"
+
+if [ -f "$ENV_FILE" ] && grep -q "CLAUDE_VOICE_TOKEN=" "$ENV_FILE"; then
+    echo "[claude-voice-server] Keeping existing bearer token."
+    TOKEN=$(grep "^CLAUDE_VOICE_TOKEN=" "$ENV_FILE" | cut -d= -f2-)
+else
+    TOKEN=$(openssl rand -hex 32 2>/dev/null || head -c 32 /dev/urandom | xxd -p | tr -d '\n')
+    cat > "$ENV_FILE" <<EOF
+CLAUDE_VOICE_TOKEN=$TOKEN
+CLAUDE_VOICE_PORT=5000
+CLAUDE_VOICE_HOST=0.0.0.0
+CLAUDE_VOICE_TIMEOUT=300
+EOF
+    chmod 600 "$ENV_FILE"
+    chown "$REAL_USER:" "$ENV_FILE"
+    echo "[claude-voice-server] Bearer token generated and saved to $ENV_FILE"
+fi
+
+# ── Detect Claude binary ───────────────────────────────────────────────────────
+CLAUDE_BIN=""
+for p in "$REAL_HOME/.local/bin/claude" \
+          "$REAL_HOME/.npm-global/bin/claude" \
+          "/usr/local/bin/claude" \
+          "/usr/bin/claude"; do
+    if [ -x "$p" ]; then
+        CLAUDE_BIN="$p"
+        break
+    fi
+done
+if command -v claude >/dev/null 2>&1; then
+    CLAUDE_BIN=$(command -v claude)
+fi
+if [ -n "$CLAUDE_BIN" ]; then
+    if ! grep -q "CLAUDE_VOICE_CLAUDE_BIN" "$ENV_FILE"; then
+        echo "CLAUDE_VOICE_CLAUDE_BIN=$CLAUDE_BIN" >> "$ENV_FILE"
+        echo "[claude-voice-server] Claude binary detected: $CLAUDE_BIN"
+    fi
+else
+    echo "[claude-voice-server] WARNING: claude binary not found. Set CLAUDE_VOICE_CLAUDE_BIN in $ENV_FILE"
+fi
+
+# ── Enable systemd user service ────────────────────────────────────────────────
+XDG_RUN="/run/user/$REAL_UID"
+DBUS="unix:path=$XDG_RUN/bus"
+
+su - "$REAL_USER" -c "
+    export XDG_RUNTIME_DIR=$XDG_RUN
+    export DBUS_SESSION_BUS_ADDRESS=$DBUS
+    systemctl --user daemon-reload
+    systemctl --user enable --now claude-voice-server
+" 2>/dev/null && echo "[claude-voice-server] Service enabled and started." || \
+    echo "[claude-voice-server] NOTE: Could not start service now (no active session). It will start on next login."
+
+# ── Print setup summary ────────────────────────────────────────────────────────
+APK_URL="https://github.com/redrum/claude-voice-integration/releases/latest/download/claude-voice.apk"
+echo ""
+echo "╔══════════════════════════════════════════════════════════╗"
+echo "║       Claude Voice Server — Installation Complete        ║"
+echo "╠══════════════════════════════════════════════════════════╣"
+printf "║  Bearer token: %-42s ║\n" "$TOKEN"
+echo "║  Env file:     ~/.config/claude-voice/server.env        ║"
+echo "║  Service:      systemctl --user status claude-voice-server║"
+echo "╚══════════════════════════════════════════════════════════╝"
+echo ""
+
+# Show QR code for APK download if qrencode is available
+if command -v qrencode >/dev/null 2>&1; then
+    echo "Scan to install the Android app:"
+    echo ""
+    qrencode -t UTF8 "$APK_URL"
+    echo ""
+fi
+echo "APK download: $APK_URL"
+echo ""
+
+# Auto-install APK via ADB if a device is connected
+APK_PATH="/opt/claude-voice-server/claude-voice.apk"
+if [ -f "$APK_PATH" ] && command -v adb >/dev/null 2>&1; then
+    if adb devices 2>/dev/null | grep -qE "^[^\s]+\s+device$"; then
+        echo "ADB device detected — installing APK..."
+        su - "$REAL_USER" -c "adb install -r $APK_PATH" && \
+            echo "[OK] APK installed via ADB." || \
+            echo "[!] ADB install failed. Install $APK_PATH manually."
+    fi
+fi
+
+echo "Next: open the app on your phone, tap Settings, and enter this PC's IP address."
+echo ""
