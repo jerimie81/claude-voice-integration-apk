@@ -222,7 +222,7 @@ step_install_server() {
 # claude-voice server environment
 # Sourced by the systemd service and run-server.sh
 export CLAUDE_VOICE_PORT=${SERVER_PORT}
-export CLAUDE_VOICE_HOST=0.0.0.0
+export CLAUDE_VOICE_HOST=10.7.0.1
 export CLAUDE_VOICE_LOG=$HOME/.claude-voice-server.log
 # export CLAUDE_VOICE_CLAUDE_BIN=$HOME/.local/bin/claude
 EOF

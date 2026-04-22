@@ -1,6 +1,6 @@
 [Unit]
 Description=Claude Voice Integration Server
-Documentation=https://github.com/redrum/claude-voice-integration
+Documentation=https://github.com/jerimie81/claude-voice-integration-apk
 After=network-online.target
 Wants=network-online.target
 

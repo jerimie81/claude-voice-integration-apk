@@ -2,7 +2,7 @@
     <string name="app_name">Claude Voice</string>
     <string name="setup_title">Set up PC Server</string>
     <string name="setup_subtitle">Run this command on your PC to install the server:</string>
-    <string name="setup_install_cmd">curl -fsSL https://raw.githubusercontent.com/redrum/claude-voice-integration/main/install.sh | bash</string>
+    <string name="setup_install_cmd">curl -fsSL https://raw.githubusercontent.com/jerimie81/claude-voice-integration-apk/main/install.sh | bash</string>
     <string name="setup_copy">Copy</string>
     <string name="setup_skip">Skip for now</string>
     <string name="setup_done">I\'ve installed the server →</string>

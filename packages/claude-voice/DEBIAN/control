@@ -6,7 +6,7 @@ Installed-Size: 12
 Depends: curl
 Section: utils
 Priority: optional
-Homepage: https://github.com/redrum/claude-voice-integration
+Homepage: https://github.com/jerimie81/claude-voice-integration-apk
 Description: Voice-triggered Claude CLI relay for Termux
  Enables Google Assistant (via Android App Actions) to relay voice queries
  to Claude CLI — either forwarded over HTTP to a PC running the companion
