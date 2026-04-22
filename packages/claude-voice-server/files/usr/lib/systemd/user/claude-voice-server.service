@@ -1,6 +1,6 @@
 [Unit]
 Description=Claude Voice Integration Server
-Documentation=https://github.com/redrum/claude-voice-integration
+Documentation=https://github.com/jerimie81/claude-voice-integration-apk
 After=network-online.target
 Wants=network-online.target
 
@@ -11,7 +11,7 @@ Restart=on-failure
 RestartSec=5
 
 Environment=CLAUDE_VOICE_PORT=5000
-Environment=CLAUDE_VOICE_HOST=0.0.0.0
+Environment=CLAUDE_VOICE_HOST=10.7.0.1
 Environment=CLAUDE_VOICE_TIMEOUT=300
 EnvironmentFile=%h/.config/claude-voice/server.env
 

@@ -1,51 +1,37 @@
 """
-claude_webhook_server.py — PC-side Flask server for claude-voice Termux package.
+claude_webhook_server.py — PC-side Flask server for claude-voice.
 
-Receives query POSTs from Termux, runs `claude -p <query>`, and returns
-Claude's response in the HTTP body so the phone can display/speak it.
-
-Configuration via environment variables:
-  CLAUDE_VOICE_CLAUDE_BIN  Path to the claude CLI binary
-                           (default: ~/.local/bin/claude)
-  CLAUDE_VOICE_PORT        Port to listen on (default: 5000)
-  CLAUDE_VOICE_LOG         Log file path (default: ~/.claude-voice-server.log)
-  CLAUDE_VOICE_HOST        Bind address (default: 10.7.0.1, the WireGuard tunnel IP)
-  CLAUDE_VOICE_TOKEN       Bearer token required on /claude and /logs.
-                           Empty disables auth (development only — emits a warning).
-  CLAUDE_VOICE_TIMEOUT     Subprocess timeout in seconds (default: 300)
+Endpoints:
+  GET  /health
+  POST /claude
+  POST /claude/stream   (SSE)
+  POST /reset
+  GET  /logs
 """
 
+import datetime
 import hmac
 import os
 import subprocess
-import datetime
 from functools import wraps
-from flask import Flask, request, Response
+
+from flask import Flask, Response, request
 
 app = Flask(__name__)
 
-# ── Config from environment ───────────────────────────────────────────────────
-CLAUDE_BIN = os.environ.get(
-    "CLAUDE_VOICE_CLAUDE_BIN",
-    os.path.expanduser("~/.local/bin/claude"),
-)
+CLAUDE_BIN = os.environ.get("CLAUDE_VOICE_CLAUDE_BIN", os.path.expanduser("~/.local/bin/claude"))
 PORT = int(os.environ.get("CLAUDE_VOICE_PORT", "5000"))
 HOST = os.environ.get("CLAUDE_VOICE_HOST", "10.7.0.1")
 TOKEN = os.environ.get("CLAUDE_VOICE_TOKEN", "")
-LOG_FILE = os.path.expanduser(
-    os.environ.get("CLAUDE_VOICE_LOG", "~/.claude-voice-server.log")
-)
+ALLOW_INSECURE_NO_TOKEN = os.environ.get("CLAUDE_VOICE_ALLOW_INSECURE_NO_TOKEN", "0") == "1"
+LOG_FILE = os.path.expanduser(os.environ.get("CLAUDE_VOICE_LOG", "~/.claude-voice-server.log"))
 TIMEOUT = int(os.environ.get("CLAUDE_VOICE_TIMEOUT", "300"))
 
-# ── Conversation history ──────────────────────────────────────────────────────
-# Each entry: {"query": str, "response": str}
-# Capped at MAX_HISTORY most recent turns to avoid ballooning prompt size.
 session_history: list[dict] = []
 MAX_HISTORY = 10
 
 
 def build_prompt(query: str) -> str:
-    """Prepend prior turns so Claude has multi-turn context."""
     if not session_history:
         return query
     lines = ["[Prior conversation]"]
@@ -62,54 +48,26 @@ def _append_history(query: str, response: str) -> None:
         session_history.pop(0)
 
 
-# ── Auth ──────────────────────────────────────────────────────────────────────
 def require_token(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
         if not TOKEN:
-            return view(*args, **kwargs)
+            return Response("Server misconfigured: missing CLAUDE_VOICE_TOKEN", status=503, mimetype="text/plain")
         header = request.headers.get("Authorization", "")
         prefix = "Bearer "
-        if not header.startswith(prefix) or not hmac.compare_digest(
-            header[len(prefix):], TOKEN
-        ):
-            return Response(
-                "Unauthorized: missing or invalid bearer token",
-                status=401,
-                mimetype="text/plain",
-            )
+        if not header.startswith(prefix) or not hmac.compare_digest(header[len(prefix):], TOKEN):
+            return Response("Unauthorized: missing or invalid bearer token", status=401, mimetype="text/plain")
         return view(*args, **kwargs)
+
     return wrapper
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 def log(text: str) -> None:
     ts = datetime.datetime.now().strftime("[%Y-%m-%d %H:%M:%S]")
     line = f"{ts} {text}\n"
-    with open(LOG_FILE, "a") as f:
+    with open(LOG_FILE, "a", encoding="utf-8") as f:
         f.write(line)
     print(line, end="", flush=True)
-
-
-_OPEN_LOG_KEYWORDS = ["open log", "show log", "view log", "open logs", "show logs", "open the log"]
-
-
-def _is_open_log_command(query: str) -> bool:
-    q = query.lower()
-    return any(kw in q for kw in _OPEN_LOG_KEYWORDS)
-
-
-def _handle_open_log(query: str) -> Response:
-    """Open the log file in the desktop file manager and return a TTS-friendly reply."""
-    try:
-        subprocess.Popen(["xdg-open", LOG_FILE])
-        msg = f"Opening the server log file now."
-        log(f"OPEN LOG: launched xdg-open on {LOG_FILE}")
-        _append_history(query, msg)
-        return Response(msg, status=200, mimetype="text/plain")
-    except Exception as exc:
-        log(f"OPEN LOG ERROR: {exc}")
-        return Response(f"Failed to open log file: {exc}", status=500, mimetype="text/plain")
 
 
 def _extract_query() -> str | None:
@@ -120,17 +78,14 @@ def _extract_query() -> str | None:
     return request.form.get("query") or None
 
 
-# ── Routes ────────────────────────────────────────────────────────────────────
 @app.route("/health", methods=["GET"])
 def health():
-    """Liveness probe used by `claude-voice --status`."""
     return Response("OK", status=200, mimetype="text/plain")
 
 
 @app.route("/reset", methods=["POST"])
 @require_token
 def reset_history():
-    """Clear multi-turn conversation history."""
     session_history.clear()
     log("RESET: conversation history cleared")
     return Response("OK", status=200, mimetype="text/plain")
@@ -144,9 +99,6 @@ def handle_claude_command():
         return Response("Error: missing 'query' parameter", status=400, mimetype="text/plain")
 
     log(f"QUERY: {query}")
-
-    if _is_open_log_command(query):
-        return _handle_open_log(query)
 
     if not os.path.isfile(CLAUDE_BIN):
         msg = f"claude binary not found at {CLAUDE_BIN}. Set CLAUDE_VOICE_CLAUDE_BIN."
@@ -174,8 +126,7 @@ def handle_claude_command():
             log(f"STDERR: {stderr[:200]}")
 
         if result.returncode != 0:
-            error_body = stderr or f"claude exited with code {result.returncode}"
-            return Response(error_body, status=500, mimetype="text/plain")
+            return Response(stderr or f"claude exited with code {result.returncode}", status=500, mimetype="text/plain")
 
         _append_history(query, stdout)
         return Response(stdout, status=200, mimetype="text/plain")
@@ -191,7 +142,6 @@ def handle_claude_command():
 @app.route("/claude/stream", methods=["POST"])
 @require_token
 def stream_claude():
-    """SSE endpoint: streams Claude's response line-by-line as it arrives."""
     query = _extract_query()
     if not query:
         return Response("Error: missing 'query' parameter", status=400, mimetype="text/plain")
@@ -200,9 +150,6 @@ def stream_claude():
         msg = f"claude binary not found at {CLAUDE_BIN}. Set CLAUDE_VOICE_CLAUDE_BIN."
         log(f"ERROR: {msg}")
         return Response(msg, status=500, mimetype="text/plain")
-
-    if _is_open_log_command(query):
-        return _handle_open_log(query)
 
     full_prompt = build_prompt(query)
     log(f"STREAM QUERY: {query}")
@@ -217,6 +164,7 @@ def stream_claude():
                 text=True,
                 env=os.environ.copy(),
             )
+            assert proc.stdout is not None
             for line in proc.stdout:
                 accumulated.append(line)
                 yield f"data: {line.rstrip()}\n\n"
@@ -242,24 +190,25 @@ def stream_claude():
 def get_logs():
     if not os.path.exists(LOG_FILE):
         return Response("No logs yet.", status=404, mimetype="text/plain")
-    with open(LOG_FILE) as f:
+    with open(LOG_FILE, encoding="utf-8") as f:
         return Response(f.read(), status=200, mimetype="text/plain")
 
 
-# ── Entry point ───────────────────────────────────────────────────────────────
 if __name__ == "__main__":
     os.makedirs(os.path.dirname(LOG_FILE) or ".", exist_ok=True)
     if not os.path.exists(LOG_FILE):
-        with open(LOG_FILE, "w") as f:
+        with open(LOG_FILE, "w", encoding="utf-8") as f:
             f.write("=== claude-voice server log ===\n")
+
+    if not TOKEN and not ALLOW_INSECURE_NO_TOKEN:
+        raise SystemExit(
+            "Refusing to start without CLAUDE_VOICE_TOKEN. Set CLAUDE_VOICE_TOKEN or override with CLAUDE_VOICE_ALLOW_INSECURE_NO_TOKEN=1 for local development only."
+        )
 
     log(f"Starting claude-voice server on {HOST}:{PORT}")
     log(f"Claude binary: {CLAUDE_BIN}")
     log(f"Log file: {LOG_FILE}")
     log(f"Subprocess timeout: {TIMEOUT}s")
-    if TOKEN:
-        log(f"Bearer auth: enabled (token length {len(TOKEN)})")
-    else:
-        log("WARNING: CLAUDE_VOICE_TOKEN is empty — bearer auth DISABLED")
+    log(f"Bearer auth: {'enabled' if TOKEN else 'DISABLED (insecure override)'}")
 
     app.run(host=HOST, port=PORT)

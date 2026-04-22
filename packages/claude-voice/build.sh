@@ -1,9 +1,9 @@
-TERMUX_PKG_HOMEPAGE="https://github.com/redrum/claude-voice-integration"
+TERMUX_PKG_HOMEPAGE="https://github.com/jerimie81/claude-voice-integration-apk"
 TERMUX_PKG_DESCRIPTION="Voice-triggered Claude CLI relay for Termux (Google Assistant → Claude)"
 TERMUX_PKG_LICENSE="GPL-3.0"
 TERMUX_PKG_MAINTAINER="@redrum"
 TERMUX_PKG_VERSION="1.0.0"
-TERMUX_PKG_SRCURL="https://github.com/redrum/claude-voice-integration/archive/refs/tags/v${TERMUX_PKG_VERSION}.tar.gz"
+TERMUX_PKG_SRCURL="https://github.com/jerimie81/claude-voice-integration-apk/archive/refs/tags/v${TERMUX_PKG_VERSION}.tar.gz"
 TERMUX_PKG_SHA256="skip"   # Update with real sha256 after publishing release tarball
 TERMUX_PKG_DEPENDS="curl"
 TERMUX_PKG_PLATFORM_INDEPENDENT=true
