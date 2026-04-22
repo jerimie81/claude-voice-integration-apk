@@ -24,7 +24,7 @@ else
     cat > "$ENV_FILE" <<EOF
 CLAUDE_VOICE_TOKEN=$TOKEN
 CLAUDE_VOICE_PORT=5000
-CLAUDE_VOICE_HOST=0.0.0.0
+CLAUDE_VOICE_HOST=10.7.0.1
 CLAUDE_VOICE_TIMEOUT=300
 EOF
     chmod 600 "$ENV_FILE"
@@ -68,7 +68,7 @@ su - "$REAL_USER" -c "
     echo "[claude-voice-server] NOTE: Could not start service now (no active session). It will start on next login."
 
 # ── Print setup summary ────────────────────────────────────────────────────────
-APK_URL="https://github.com/redrum/claude-voice-integration/releases/latest/download/claude-voice.apk"
+APK_URL="https://github.com/jerimie81/claude-voice-integration-apk/releases/latest/download/claude-voice.apk"
 echo ""
 echo "╔══════════════════════════════════════════════════════════╗"
 echo "║       Claude Voice Server — Installation Complete        ║"

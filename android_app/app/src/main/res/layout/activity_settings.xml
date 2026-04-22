@@ -105,6 +105,29 @@
             android:inputType="textPassword"
             android:fontFamily="sans-serif" />
 
+        <!-- Request timeout field -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:layout_marginBottom="8dp"
+            android:text="Request Timeout (seconds)"
+            android:textColor="@color/text_secondary"
+            android:textSize="14sp"
+            android:fontFamily="sans-serif-medium" />
+
+        <EditText
+            android:id="@+id/etTimeout"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:background="@drawable/bg_settings_input"
+            android:hint="300"
+            android:textColor="@color/text_primary"
+            android:textColorHint="@color/text_muted"
+            android:textSize="16sp"
+            android:inputType="number"
+            android:fontFamily="sans-serif" />
+
     </LinearLayout>
 
     <!-- Save button pinned to bottom -->
